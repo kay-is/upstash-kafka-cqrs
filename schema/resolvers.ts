@@ -22,15 +22,15 @@ export const resolvers = {
         id: String(Date.now() + Math.random()),
         done: false,
       }
-      await eventStore.push({ type: "create-task", data: newTask })
+      await eventStore.saveEvent({ type: "create-task", data: newTask })
       return newTask
     },
     async updateTask(_: unknown, input: UpdateTaskInput) {
-      await eventStore.push({ type: "update-task", data: input })
+      await eventStore.saveEvent({ type: "update-task", data: input })
       return { ...input }
     },
     async deleteTask(_: unknown, input: DeleteTaskInput) {
-      await eventStore.push({
+      await eventStore.saveEvent({
         type: "delete-task",
         data: { id: input.id, text: "", done: false },
       })

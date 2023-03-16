@@ -3,13 +3,12 @@ import type { TaskEvent } from "./eventstore"
 import { Redis } from "@upstash/redis"
 
 export class ProjectionStore {
-  private redisClient = new Redis({
-    url: process.env.UPSTASH_REDIS_URL,
-    token: process.env.UPSTASH_REDIS_TOKEN,
-  })
+  private redisClient = Redis.fromEnv()
 
   async processEvents(events: TaskEvent[]) {
     console.log("Processing events...")
+    if (events.length === 0) return console.log("No events to process!")
+
     const pipeline = this.redisClient.pipeline()
     for (let event of events) {
       switch (event.type) {
@@ -30,19 +29,29 @@ export class ProjectionStore {
       }
     }
 
+    const offset = events[events.length - 1].offset + 1
+    pipeline.set("lastOffset", offset)
+
     await pipeline.exec()
+
     console.log("Events processed!")
+  }
+
+  async loadOffset(): Promise<number> {
+    const pipeline = await this.redisClient.pipeline()
+    pipeline.set("cacheBuster", Math.random())
+    pipeline.get("lastOffset")
+    const results = await pipeline.exec<number[]>()
+
+    return results.pop() ?? 1
   }
 
   async loadTasks(): Promise<Task[]> {
     const taskIds = await this.redisClient.smembers("tasks")
+
     const pipeline = this.redisClient.pipeline()
+    for (let taskId of taskIds) pipeline.get(taskId)
 
-    for (let taskId in taskIds) pipeline.get(taskId)
-
-    const results = await pipeline.exec()
-
-    //@ts-expect-error
-    return results.map((r) => r.result)
+    return await pipeline.exec()
   }
 }

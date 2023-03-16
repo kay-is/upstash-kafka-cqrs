@@ -5,7 +5,8 @@ const eventStore = new EventStore()
 const projectionStore = new ProjectionStore()
 
 export const GET = async (request: Request) => {
-  const events = await eventStore.pull()
+  const offset = await projectionStore.loadOffset()
+  const events = await eventStore.loadEvents(offset)
 
   await projectionStore.processEvents(events)
 
